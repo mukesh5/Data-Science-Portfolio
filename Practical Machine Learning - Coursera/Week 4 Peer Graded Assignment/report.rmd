@@ -1,0 +1,93 @@
+##Practical Machine Learning Project
+
+#Introduction 
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise.
+We will start by importing the necessary libraries.
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(corrplot)
+```
+##Loading the Data
+```{r}
+trainData <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), header =TRUE)
+dim(trainData)
+
+```
+
+```{r}
+testData <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),header=TRUE)
+dim(testData)
+```
+
+##Let's look at the structure of the dataset
+```{r}
+str(trainData)
+```
+
+The training set consists of 19622 observations and 160 varibales. But as we can see many of those columns have NA values or blank values.
+So we will remove them as they do not contain any information and including them will only increase the complexity of the model. The first 7 columns give information about the user and timestamps. We will remove them too.
+```{r}
+indColtoRem <- which(colSums(is.na(trainData) | trainData == "")>0.9*dim(trainData)[1])
+trainDataClean <- trainData[,-indColtoRem]
+trainDataClean <- trainDataClean[,-c(1:7)]
+dim(trainDataClean)
+```
+Now we will apply same transformation to the test data
+```{r}
+indColToRemove <- which(colSums(is.na(testData) |testData=="")>0.9*dim(testData)[1]) 
+testDataClean <- testData[,-indColToRemove]
+testDataClean <- testDataClean[,-c(1:7)]
+#testDataClean <- testDataClean[,-1]
+dim(testDataClean)
+```
+for cross validation we will split the training data into two parts one for training(75%) and other for validation(25%)
+```{r}
+set.seed(12345)
+inTrain <- createDataPartition(trainData$classe, p=0.75, list=FALSE)
+train1 <- trainDataClean[inTrain,]
+validnData <- trainDataClean[-inTrain,]
+dim(train1)
+dim(validnData)
+```
+##Training and Cross Validation
+Here we will be using Random Forest model because it automaticallly identifies the important features that gives best performance and is robust to outliers.
+We will using 5-fold cross validation to limit effects of overfitting
+```{r}
+rfControl = trainControl(method = "cv", number = 5)
+rfModel = train(classe~., data = train1, method="rf", trControl = rfControl, verbose = FALSE)
+rfModel
+```
+```{r}
+
+```
+
+```{r}
+plot(rfModel, main="Accuracy of Random Forest model by number of predictors")
+```
+
+##Predicting on validation  data
+```{r}
+pred <- predict(rfModel, newdata = validnData)
+length(pred)
+rfConfMt <- confusionMatrix(validnData$classe, pred)
+
+rfConfMt
+```
+```{r}
+plot(rfModel$finalModel, main = "Model error of Random Forest by number of trees")
+```
+##So the estimated accuracy of Random forest is 99.31% and estimated out-of-sample error is 0.69%.
+##Now we will use this model for our actual test data
+
+```{r}
+finalPred <- predict(rfModel, newdata = testDataClean)
+finalPred
+```
+
